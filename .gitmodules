@@ -1,0 +1,3 @@
+[submodule "cronos"]
+	path = cronos
+	url = git://github.com/open-agroclimate/cronos-api.git
