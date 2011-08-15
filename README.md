@@ -18,8 +18,8 @@ Usage
 ```
 git clone git://github.com/open-agroclimate/php-refet.git
 cd php-refet
-git submodules init
-git submodules update
+git submodule init
+git submodule update
 ```
 
 Known Limitations/Caveats
