@@ -15,13 +15,12 @@ http://www.fao.org/docrep/X0490E/X0490E00.htm
 
 Usage
 =========================
-
-To use this tool within your project, copy the cronos.php, ETfunctionAPI.php,
-refETdyn.php, refETdynmap.php, refETdynchart.php, mapiconmaker.js,
-get_adobe_flash_player.png, and calendar.gif from this directory into
-your project. This project depends on the HttpClient.class.php file located
-under lib. If you desire to move this file, please change the reference
-for it found in cronos.php.
+```
+git clone git://github.com/open-agroclimate/php-refet.git
+cd php-refet
+git submodules init
+git submodules update
+```
 
 Known Limitations/Caveats
 ==========================
