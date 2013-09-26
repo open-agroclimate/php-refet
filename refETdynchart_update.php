@@ -3,8 +3,9 @@
 <html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
 <head>
     <script src="js/mapiconmaker.js" type="text/javascript"></script>
-    <!--Change below API key to your key.-->
-    <script src="http://maps.google.com/maps?file=api&amp;v=2&amp;key=&sensor=false" type="text/javascript"></script>
+    <!--Change below API key to your key or include in your own passwords.php file.-->
+    <?php require_once('./passwords.php');?>
+    <script src="http://maps.google.com/maps?file=api&amp;v=2&amp;key=<?php echo $OldJSapiKey;?>&sensor=false" type="text/javascript"></script>
     <script type="text/javascript" src="http://www.google.com/jsapi"></script>
 </head>
 <body>
@@ -20,8 +21,8 @@ table#chart_table{
 require_once( './cronos/cronos.php' );
 require_once( './ETfunctionAPI.php' );
 
-// Replace with your API key.
-$c = new CRONOS( 'abc123' ); 
+// Replace with your API key or include in your own passwords.php file.
+$c = new CRONOS( $cronosAPIkey );
 
 // Collect data for requested station.
 $results = $c->listStations( array(), array(), array($_REQUEST['station']), array(), true );
