@@ -32,8 +32,8 @@ average solar radiation) will be computed from hourly data even if <80% of
 the hourly data is available to compute these daily values. This could lead to
 bad values being output from the reference ET calculation.
 
-2) Currently, the link to the "Main Page" points to the reference ET tool
-hosted by the State Climate Office --this will be fixed soon.
-
-3) User needs to obtain an API key from Google for their server or local
+2) User needs to obtain an API key from Google for their server or local
 machine. Sign up for this here: http://code.google.com/apis/maps/signup.html
+
+3) Users may need to limit chart code to pull only about 3 years of data
+so that page load speed is <5secs.
