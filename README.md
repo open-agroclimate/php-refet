@@ -37,3 +37,5 @@ machine. Sign up for this here: http://code.google.com/apis/maps/signup.html
 
 3) Users may need to limit chart code to pull only about 3 years of data
 so that page load speed is <5secs.
+
+4) Users may have to change location of their cronos.php file (in require_once())
