@@ -2,17 +2,15 @@
   "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
 <head>
-    <script src="js/mapiconmaker.js" type="text/javascript"></script>
-    <!--Change below API key to your key or include in your own passwords.php file.-->
-    <?php require_once('./passwords.php');?>
-    <script src="http://maps.google.com/maps?file=api&amp;v=2&amp;key=<?php echo $OldJSapiKey;?>&sensor=false" type="text/javascript"></script>
-</head>
-<body>
-<?php 
-        //Get form inputs for the date specified by user. Then, make sure that requested date is between 2002-01-01 and yesterday.
-        $startdate=strtotime($_REQUEST['date']);
-        $yest = strtotime("-1 day");
-        if(($startdate>=strtotime('2002-01-01')) && ($startdate<=$yest)){ ?>
+<script src="js/mapiconmaker.js" type="text/javascript"></script>
+<!--Change below API key to your key or include in your own passwords.php file.-->
+<?php require_once('./passwords.php');?>
+<script type="text/javascript" src="//maps.googleapis.com/maps/api/js?key=<?php echo $JSapiKey;?>&sensor=false"></script>
+<link href="http://jqueryui.com/resources/demos/style.css" rel="stylesheet" />
+<link rel="stylesheet" href="http://code.jquery.com/ui/1.10.3/themes/smoothness/jquery-ui.css" />
+<script src="http://code.jquery.com/jquery-1.9.1.js"></script>
+<script src="http://code.jquery.com/ui/1.10.3/jquery-ui.js"></script>
+
 
 <style type="text/css">
 p.date {font-size:100%}
@@ -40,22 +38,31 @@ table#layer2 {
   padding: 0px;
   
 }
-
 </style>
-<link type="text/css" href="http://ajax.googleapis.com/ajax/libs/jqueryui/1.8.5/themes/base/jquery-ui.css" rel="stylesheet"/>
-<script type="text/javascript" src="http://code.jquery.com/jquery-1.5.1.js"></script>
-<script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.8.15/jquery-ui.min.js"></script>
-<script type="text/javascript">
+<?php 
+        //Get form inputs for the date specified by user. Then, make sure that requested date is between 2002-01-01 and yesterday.
+        $startdate=strtotime($_REQUEST['date']);
+        $yest = strtotime("-1 day");
+        if(($startdate>=strtotime('2002-01-01')) && ($startdate<=$yest)){ ?>
 
+<script type="text/javascript">
 //Function to set up the Javascript calendar.
 $(function() {
 	    $("#datepicker").datepicker({showOn: 'button',buttonImage: 'images/calendar.gif',buttonImageOnly: true, changeMonth: true, changeYear: true, dateFormat: 'yy-mm-dd', minDate: (new Date(2002, 1 - 1, 1)), maxDate: '-1D'});
 });
-</script>
+
+//Set up the map and its properties (map type, where to center it, user controls).
+function initialize4() {
+
+   var map = new google.maps.Map(document.getElementById("mapcanvasTEST_ET"), {
+   center: new google.maps.LatLng(31.8,-81.5),
+   zoom: 6,
+   mapTypeId: google.maps.MapTypeId.TERRAIN
+  }); 
+
 <?php  
 //Obtain metadata for displaying stations on Google map (below), and compute the reference ET for requested date. 
-
-require_once( './cronos/cronos.php' );
+require_once( './cronos.php' );
 require_once( './ETfunctionAPI.php' );
 
 // Replace with your API key or include in your own passwords.php file.
@@ -70,17 +77,14 @@ $stninfo=array();
 
 foreach( $results as $r ) {
   $stations[] = $r['station'];
-  $stninfo[$r['station']]['elev'] = $r['elev'];
+  $stninfo[$r['station']] = $r;
+  //specific formatting for certain elements (e.g. remove apostrophes from name and city)
+  $stninfo[$r['station']]['elev'] = $r['elev(ft)'];
   $stninfo[$r['station']]['type'] = $r['network'];
-  $stninfo[$r['station']]['lat'] = $r['lat'];
-  $stninfo[$r['station']]['lon'] = $r['lon'];
-  $stninfo[$r['station']]['name'] = $r['name'];
-  $stninfo[$r['station']]['county'] = $r['county'];
-  $stninfo[$r['station']]['city'] = $r['city'];
-  $stninfo[$r['station']]['state'] = $r['state'];
-  $stninfo[$r['station']]['startdate'] = $r['startdate'];
-  $stninfo[$r['station']]['enddate'] = $r['enddate'];
-}
+  $stninfo[$r['station']]['name'] = str_replace("'", "", $r['name']);
+  $stninfo[$r['station']]['city'] = str_replace("'", "", $r['city']);
+  
+} //end foreach
 
 // Define start and enddates.
 $start=date('Y-m-d',strtotime($_REQUEST['date']));
@@ -91,7 +95,7 @@ $daily = $c->getDailyData( $stations, $start, $end );
 
 // Compute the reference ET per station per day.
 foreach( $daily as $d ) {
-  
+
   // Format the day of year for reference ET estimate
   $doy=date('z',strtotime($d['ob']));
   $doy=$doy+1;
@@ -110,230 +114,257 @@ foreach( $daily as $d ) {
   $stninfo[$d['station']]['etavg_inch']=($stninfo[$d['station']]['etavg']*0.03937007874);
   } 
   }
+} //end foreach
 
-}
-?>
-
-<script type="text/javascript">
-//If Gbrowser is compatible, create the map properties listed (map type, where to center it, user controls).
-function initialize4() {
-  if (GBrowserIsCompatible()) { 
-var map = new GMap2(document.getElementById("mapcanvasTEST_ET"));
-map.setUIToDefault();
-map.setCenter(new GLatLng(31.8,-81.5), 6);
-map.setMapType(G_PHYSICAL_MAP);
-map.disableScrollWheelZoom();
-map.disableDoubleClickZoom();
-
-<?php
-    //Break date into year, month, and day. This is used below to feed a year to chart product, and for formatting date to display on webpage.
+    //Break date into year, month, and day. This is used below to feed a year to chart product, and for formatting date for form in infoWindow.
     list($Y,$M,$D) = explode("-",$start);
 
-$broked = array();
-//Loop through results and put them into two seperate arrays, $station and $data, using the list function.
-while(list($station,$data)=each($stninfo)){
+//Loop through results and put them into two separate arrays, $station and $value, using the list function.
+while(list($station,$value)=each($stninfo)){
 
   // If reference ET estimates are not between 0 and 10, do not show on map (ie. continue to next iteration of loop).
-if( !array_key_exists( 'etavg', $data ) || $data['etavg']<=0 || $data['etavg']>10){ 
+if( !array_key_exists( 'etavg', $value ) || $value['etavg']<=0 || $value['etavg']>10){ 
    continue;
-   }
-   ?>
+   } ?>
 
-//Create a new point with the station lat/lon.
-var myLatLon = new GLatLng(<?php echo $data['lat']; ?>, <?php echo $data['lon']; ?>);
+  var infoWindow;
+  //Create a new point with the station lat/lon.
+  var myLatLon = 
+    new google.maps.LatLng(<?php echo $value['lat'];?> , <?php echo $value['lon'];?>);
 
-//Set up the marker icon properties (width, height, color, shape, etc) based on unit requessted. Colorize the marker based on the estimated reference ET value.
-var iconOptions = {};
-  iconOptions.width = 12;
-  iconOptions.height = 12;
-  iconOptions.primaryColor = <?php
+   //Function to create a clickable marker and open an Info Window at each marker. 
+  //Each marker has station metadata the reference ET value, a link to explain station type, 
+  //a link to display the annual chart, and a link to obtain more information for that station from the CRONOS page hosted by the NC State Climate Office.
+  function create<?php echo trim($station);?>Marker(myLatLon){
+  //Set up the marker icon properties (width, height, color, shape, etc) based on unit requested. Colorize the marker based on the estimated reference ET value.
+  var circlesymb = {
+      path: google.maps.SymbolPath.CIRCLE,
+      fillOpacity: 1,
+      strokeWeight: 4,
+   <?php
   //Unit of mm.
   If($_REQUEST['unit']=='mm'){
-    If($data['etavg']>=0.000 && $data['etavg']<=0.500){ ?>
-      '#330066'; //dark purple
+    If($value['etavg']>=0.000 && $value['etavg']<=0.500){ ?>
+      fillColor: '#330066', //dark purple
+      strokeColor: '#330066' //dark purple
     <?php }
-    elseif($data['etavg']>0.500 && $data['etavg']<=1.000){ ?>
-      '#800080'; //purple
+    elseif($value['etavg']>0.500 && $value['etavg']<=1.000){ ?>
+      fillColor: '#800080', //purple
+      strokeColor: '#800080' //purple
     <?php }
-    elseif($data['etavg']>1.000 && $data['etavg']<=1.500){ ?>
-      '#9900CC'; //lt purple 
+    elseif($value['etavg']>1.000 && $value['etavg']<=1.500){ ?>
+      fillColor: '#9900CC', //lt purple 
+      strokeColor: '#9900CC' //lt purple 
     <?php }
-    elseif($data['etavg']>1.500 && $data['etavg']<=2.000){ ?>
-      '#9966FF';  //purpley blue
+    elseif($value['etavg']>1.500 && $value['etavg']<=2.000){ ?>
+      fillColor: '#9966FF',  //purpley blue
+      strokeColor: '#9966FF'  //purpley blue
     <?php }
-    elseif($data['etavg']>2.000 && $data['etavg']<=2.500){ ?>
-      '#0000FF'; //blue
+    elseif($value['etavg']>2.000 && $value['etavg']<=2.500){ ?>
+      fillColor: '#0000FF', //blue
+      strokeColor: '#0000FF' //blue
     <?php }
-    elseif($data['etavg']>2.500 && $data['etavg']<=3.000){ ?>
-      '#76A4FB'; //lt blue
+    elseif($value['etavg']>2.500 && $value['etavg']<=3.000){ ?>
+      fillColor: '#76A4FB', //lt blue
+      strokeColor: '#76A4FB' //lt blue
     <?php }
-    elseif($data['etavg']>3.000 && $data['etavg']<=3.500){ ?>
-      '#00CC99';  //greenish-blue
+    elseif($value['etavg']>3.000 && $value['etavg']<=3.500){ ?>
+      fillColor: '#00CC99',  //greenish-blue
+      strokeColor: '#00CC99'  //greenish-blue
     <?php }
-    elseif($data['etavg']>3.500 && $data['etavg']<=4.000){ ?>
-      '#00CC00'; //lime green
+    elseif($value['etavg']>3.500 && $value['etavg']<=4.000){ ?>
+      fillColor: '#00CC00', //lime green
+      strokeColor: '#00CC00' //lime green
     <?php }
-    elseif($data['etavg']>4.000 && $data['etavg']<=4.500){ ?>
-      '#66FF33'; //lt lime green
+    elseif($value['etavg']>4.000 && $value['etavg']<=4.500){ ?>
+      fillColor: '#66FF33', //lt lime green
+      strokeColor: '#66FF33' //lt lime green
     <?php }
-    elseif($data['etavg']>4.500 && $data['etavg']<=5.000){ ?>
-      '#FFFF33'; //yellow
+    elseif($value['etavg']>4.500 && $value['etavg']<=5.000){ ?>
+      fillColor: '#FFFF33', //yellow
+      strokeColor: '#FFFF33' //yellow
     <?php }
-    elseif($data['etavg']>5.000 && $data['etavg']<=5.500){ ?>
-      '#FFCC33'; //lt orange
+    elseif($value['etavg']>5.000 && $value['etavg']<=5.500){ ?>
+      fillColor: '#FFCC33', //lt orange
+      strokeColor: '#FFCC33' //lt orange
     <?php }
-    elseif($data['etavg']>5.500 && $data['etavg']<=6.000){ ?>
-      '#FF9900'; //orange
+    elseif($value['etavg']>5.500 && $value['etavg']<=6.000){ ?>
+      fillColor: '#FF9900', //orange
+      strokeColor: '#FF9900' //orange
     <?php }
-    elseif($data['etavg']>6.000 && $data['etavg']<=6.500){ ?>
-      '#FF0000'; //red
+    elseif($value['etavg']>6.000 && $value['etavg']<=6.500){ ?>
+      fillColor: '#FF0000', //red
+      strokeColor: '#FF0000' //red
     <?php }
-    elseif($data['etavg']>6.500 && $data['etavg']<=7.000){ ?>
-      '#FF6699'; //lt pink
+    elseif($value['etavg']>6.500 && $value['etavg']<=7.000){ ?>
+      fillColor: '#FF6699', //lt pink
+      strokeColor: '#FF6699' //lt pink
     <?php }
-    elseif($data['etavg']>7.000 && $data['etavg']<=7.500){ ?>
-      '#FF0066'; //pink 
+    elseif($value['etavg']>7.000 && $value['etavg']<=7.500){ ?>
+      fillColor: '#FF0066', //pink 
+      strokeColor: '#FF0066' //pink 
     <?php }
-    elseif($data['etavg']>7.500){ ?>
-      '#990033'; //dark pink
+    elseif($value['etavg']>7.500){ ?>
+      fillColor: '#990033', //dark pink
+      strokeColor: '#990033' //dark pink
     <?php }
   }
   //Unit of inches.
   elseif($_REQUEST['unit']=='inches'){
-    If($data['etavg_inch']>=0.00 && $data['etavg_inch']<=0.02){ ?>
-      '#330066'; //dark purple
+    if($value['etavg_inch']>=0.00 && $value['etavg_inch']<=0.02){ ?>
+      fillColor: '#330066', //dark purple
+      strokeColor: '#330066' //dark purple
     <?php }
-    elseif($data['etavg_inch']>0.02 && $data['etavg_inch']<=0.04){ ?>
-      '#800080'; //purple
+    elseif($value['etavg_inch']>0.02 && $value['etavg_inch']<=0.04){ ?>
+      fillColor: '#800080', //purple
+      strokeColor: '#800080' //purple
     <?php }
-    elseif($data['etavg_inch']>0.04 && $data['etavg_inch']<=0.06){ ?>
-      '#9900CC'; //lt purple 
+    elseif($value['etavg_inch']>0.04 && $value['etavg_inch']<=0.06){ ?>
+      fillColor: '#9900CC', //lt purple 
+      strokeColor: '#9900CC' //lt purple 
     <?php }
-    elseif($data['etavg_inch']>0.06 && $data['etavg_inch']<=0.08){ ?>
-      '#9966FF';  //purpley blue
+    elseif($value['etavg_inch']>0.06 && $value['etavg_inch']<=0.08){ ?>
+      fillColor: '#9966FF',  //purpley blue
+      strokeColor: '#9966FF'  //purpley blue
     <?php }
-    elseif($data['etavg_inch']>0.08 && $data['etavg_inch']<=0.10){ ?>
-      '#0000FF'; //blue
+    elseif($value['etavg_inch']>0.08 && $value['etavg_inch']<=0.10){ ?>
+      fillColor: '#0000FF', //blue
+      strokeColor: '#0000FF' //blue
     <?php }
-    elseif($data['etavg_inch']>0.10 && $data['etavg_inch']<=0.12){ ?>
-      '#76A4FB'; //lt blue
+    elseif($value['etavg_inch']>0.10 && $value['etavg_inch']<=0.12){ ?>
+      fillColor: '#76A4FB', //lt blue
+      strokeColor: '#76A4FB' //lt blue
     <?php }
-    elseif($data['etavg_inch']>0.12 && $data['etavg_inch']<=0.14){ ?>
-      '#00CC99';  //greenish-blue
+    elseif($value['etavg_inch']>0.12 && $value['etavg_inch']<=0.14){ ?>
+      fillColor: '#00CC99',  //greenish-blue
+      strokeColor: '#00CC99'  //greenish-blue
     <?php }
-    elseif($data['etavg_inch']>0.14 && $data['etavg_inch']<=0.16){ ?>
-      '#00CC00'; //lime green
+    elseif($value['etavg_inch']>0.14 && $value['etavg_inch']<=0.16){ ?>
+      fillColor: '#00CC00', //lime green
+      strokeColor: '#00CC00' //lime green
     <?php }
-    elseif($data['etavg_inch']>0.16 && $data['etavg_inch']<=0.18){ ?>
-      '#66FF33'; //lt lime green
+    elseif($value['etavg_inch']>0.16 && $value['etavg_inch']<=0.18){ ?>
+      fillColor: '#66FF33', //lt lime green
+      strokeColor: '#66FF33' //lt lime green
     <?php }
-    elseif($data['etavg_inch']>0.18 && $data['etavg_inch']<=0.20){ ?>
-      '#FFFF33'; //yellow
+    elseif($value['etavg_inch']>0.18 && $value['etavg_inch']<=0.20){ ?>
+      fillColor: '#FFFF33', //yellow
+      strokeColor: '#FFFF33' //yellow
     <?php }
-    elseif($data['etavg_inch']>0.20 && $data['etavg_inch']<=0.22){ ?>
-      '#FFCC33'; //lt orange
+    elseif($value['etavg_inch']>0.20 && $value['etavg_inch']<=0.22){ ?>
+      fillColor: '#FFCC33', //lt orange
+      strokeColor: '#FFCC33' //lt orange
     <?php }
-    elseif($data['etavg_inch']>0.22 && $data['etavg_inch']<=0.24){ ?>
-      '#FF9900'; //orange
+    elseif($value['etavg_inch']>0.22 && $value['etavg_inch']<=0.24){ ?>
+      fillColor: '#FF9900', //orange
+      strokeColor: '#FF9900' //orange
     <?php }
-    elseif($data['etavg_inch']>0.24 && $data['etavg_inch']<=0.26){ ?>
-      '#FF0000'; //red
+    elseif($value['etavg_inch']>0.24 && $value['etavg_inch']<=0.26){ ?>
+      fillColor: '#FF0000', //red
+      strokeColor: '#FF0000' //red
     <?php }
-    elseif($data['etavg_inch']>0.26 && $data['etavg_inch']<=0.28){ ?>
-      '#FF6699'; //lt pink
+    elseif($value['etavg_inch']>0.26 && $value['etavg_inch']<=0.28){ ?>
+      fillColor: '#FF6699', //lt pink
+      strokeColor: '#FF6699' //lt pink
     <?php }
-    elseif($data['etavg_inch']>0.28 && $data['etavg_inch']<=0.30){ ?>
-      '#FF0066'; //pink 
+    elseif($value['etavg_inch']>0.28 && $value['etavg_inch']<=0.30){ ?>
+      fillColor: '#FF0066', //pink 
+      strokeColor: '#FF0066' //pink 
     <?php }
-    elseif($data['etavg_inch']>0.30){ ?>
-      '#990033'; //dark pink
+    elseif($value['etavg_inch']>0.30){ ?>
+      fillColor: '#990033', //dark pink
+      strokeColor: '#990033' //dark pink
     <?php }
   }?>
-  
-  iconOptions.label = "";
-  iconOptions.labelSize = 0;
-  iconOptions.labelColor = '#000000';
-  iconOptions.shape = "roundrect";
-  
-  //Create a new variable for the above marker specifications.
-  var icon = MapIconMaker.createFlatIcon(iconOptions);
 
-  //Function to create a clickable marker and open an Info Window at each marker. 
-  //Each marker contains station metadata, the reference ET value, a link to explain station type, 
-  //a link to display the annual chart, and a link to obtain more information for that station from the CRONOS page hosted by the NC State Climate Office.
-  function create<?php echo $station;?>Marker(myLatLon) {
-
-  //Set up our GMarkerOptions object
-  markerOptionsThree = { icon:icon };
-  var marker = new GMarker(myLatLon, markerOptionsThree);
-  marker.station = "<?php echo $station;?>";
-  GEvent.addListener(marker, "click", function() {
-    marker.openInfoWindowHtml("<div class='wformat_3'><?php echo "<center><b><u>Daily ET Value:</u></b>";
-      If($_REQUEST['unit']=='mm'){
-          $data['etavg']=sprintf("%6.1f",$data['etavg']);
-	   echo $data['etavg'];
+     };
+     var marker = new google.maps.Marker({ 
+         position: myLatLon,
+         icon: circlesymb,
+         map: map 
+      });
+     
+     google.maps.event.addListener(marker,'click',function(){
+     var contentString = '<div class="wformat_3"><center><b><u>Daily ET Value:</u></b>' +
+        '<?php if($_REQUEST['unit']=='mm'){
+          $value['etavg']=sprintf("%6.1f",$value['etavg']);
+	  echo $value['etavg'];
+	  }else{
+          $value['etavg_inch']=sprintf("%6.2f",$value['etavg_inch']);
+	  echo $value['etavg_inch'];
 	  }
-	  else{
-          $data['etavg_inch']=sprintf("%6.2f",$data['etavg_inch']);
-	   echo $data['etavg_inch'];
-	  }
-    	  If($_REQUEST['unit']=='mm'){
+    	  if($_REQUEST['unit']=='mm'){
 	    echo " mm";
 	  }
 	  elseif($_REQUEST['unit']=='inches'){
 	    echo " inches";
-	  }
-echo "<br><br><form action='refETdynchart.php?station=".$station."&year=".$Y."&unit=".$_REQUEST['unit']."' method='post' target='_blank'><input type='submit' name='day' value='View timeseries'></form></center>";
-echo "<hr><b><u>Station Information:</u></b>"; echo "<br><br><b>Name: </b>"; echo $data['name']; echo " ("; echo $station; echo ")"; echo "<br><b>Location: </b>"; echo $data['city'].", ".$data['state']; echo "<br><b>Elevation: </b>"; echo $data['elev']; echo " feet above sea level"; echo "<br><b>Type: </b>"; echo $data['type']; 
-echo " <A href=# onClick=window.open('http://www.nc-climate.ncsu.edu/dynamic_scripts/cronos/types.php','meta_info','width=500,height=1000,scrollbars=yes,resizable=yes')>what does this mean?</A>"; echo "<br><b>Start Date: </b>"; echo $data['startdate']; echo "<br><b>End Date: </b>"; echo $data['enddate']; echo "<br><form action='http://www.nc-climate.ncsu.edu/cronos/?station=".$station."' method='post' target='_blank'><input type='submit' name='more_data' value='More data for this station'></form></div>";?>
-    ");
-  });
-  return marker;
-}
-
-//Add the stations to the map.
-  map.addOverlay(create<?php echo $station;?>Marker(myLatLon));
+	  }?><br><br><form action=' +
+          '"./refETdynchart_update.php?station=' +
+          '<?php echo trim($station);?>&year=<?php echo $Y;?>' +
+          '&unit=<?php echo $_REQUEST['unit'];?>" id="form" method="post" target="_blank">' +
+          '<input type="submit" name="day" value="View timeseries"></form></center>' +
+          '<hr><b><u>Station Information:</u></b><br><br><b>Name: </b><?php echo $value['name'];?>' +
+          ' (<?php echo trim($station);?>)<br><b>Location: </b><?php echo $value['city'];?>' +
+          ', <?php echo $value['state'];?><br><b>Elevation: </b><?php echo $value['elev'];?>' +
+          ' feet above sea level<br><b>Type: </b><?php echo $value['type'];?>' + 
+          ' <A href=# onClick=window.open(' +
+          '"http://www.nc-climate.ncsu.edu/dynamic_scripts/cronos/types.php",' +              
+          '"meta_info","width=500,height=1000,scrollbars=yes,resizable=yes")>' + 
+          'what does this mean?</A><br><br>' + 
+          '<form action="http://www.nc-climate.ncsu.edu/cronos/?station=' + 
+          '<?php echo trim($station);?>" method="post" target="_blank">' +
+          '<input type="submit" name="more_data" value="More data for this station"></form></div>';
+          
+          if(infoWindow){
+          infoWindow.close();
+          }
+          infoWindow = new google.maps.InfoWindow();
+          infoWindow.setContent(contentString);
+          infoWindow.open(map,marker);
+      }); //end event listener
+       return marker;
+      } //end function createMarker
+      //Add the stations to the map.
+      create<?php echo trim($station);?>Marker(myLatLon).setMap(map);
+  
   <?php
-  } ?> //ends the while loop.
-   }  //Ends the if GBrowserIsCompatible statement.   
+  } ?> //ends the while loop. 
  } //Ends the function initialize4.
-
-//Execute onload and onunload here instead of in the body tag (see Google Maps API example).
-if(window.addEventListener){
-	window.addEventListener("load",initialize4,false);
-}
-else{
-	window.attachEvent("onload",initialize4);	
-}
-if(window.addEventListener){
- window.addEventListener( "unload", GUnload, false ); 
-} 
-else {
- window.attachEvent( "onunload", GUnload ); 
-}
+ google.maps.event.addDomListener(window, 'load', initialize4);
 </script>
+</head>
+<body>
 <!--Display the date specified and and give the option to show another date.-->
-<form action="refETdynmap.php" method="get">
+<form action="./refETdynmap_update.php" method="get">
 <p><b><i>Select another date and unit of interest:</b></i></p>
                   <div class="demo">
-                   <p>Date: <input type="text" name="date" id="datepicker" size="30"/>
+                   <p>Date: <input type="text" name="date" id="datepicker" size="30" value="<?php echo $start;?>"  onblur="if (this.value == '') {this.value = '<?php echo $start;?>';}"
+ onfocus="if (this.value == '<?php echo $start;?>') {this.value = '';}" onchange="this.form.submit()"/>
                     &nbsp&nbsp&nbsp Unit:
-                  <select name="unit">
-                    <option value="inches">inches</option>
-                    <option value="mm">mm</option>
+                  <select name="unit" onchange="this.form.submit()">
+                    <?php if($_REQUEST['unit']=='inches'){
+                    echo "<option value='inches'>inches</option>";
+                    echo "<option value='mm'>mm</option>";
+                    }elseif($_REQUEST['unit']=='mm'){
+                    echo "<option value='mm'>mm</option>";
+                    echo "<option value='inches'>inches</option>";
+                    }?>
                   </select>
-                  &nbsp&nbsp&nbsp&nbsp<input type="submit" value="Submit" class="button" /> &nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp<A href='http://www.nc-climate.ncsu.edu/et'>Back to Main Page</A>
+                  &nbsp&nbsp&nbsp&nbsp<!--input type="submit" value="Submit" class="button" /> -->
                    <br> &nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp (YYYY-MM-DD)
                   </p></div>
 </form><hr width=95%><center><p class="date"><b><?php
+
                 //Break date into year, month, and day.
 		list($Y,$M,$D) = explode("-",$start);
 		  $next=date('Y-m-d',strtotime($start." +1 day"));
 		  $prev=date('Y-m-d',strtotime($start." -1 day"));
-		  echo "<A href='refETdynmap.php?date=".$prev."&unit=".$_REQUEST['unit']."','prev_date')>Previous day</A>";
+		  echo "<A href='./refETdynmap_update.php?date=".$prev."&unit=".$_REQUEST['unit']."','prev_date')>Previous day</A>";
 		$ET_date = date("F j, Y", mktime(0,0,0,$M,$D,$Y));
 	          echo "&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp ".$ET_date."&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp";
-                  echo "<A href='refETdynmap.php?date=".$next."&unit=".$_REQUEST['unit']."','next_date')>Next day</A>";?></b></p>
+                  if($start!=date('Y-m-d', strtotime('yesterday'))){
+                  echo "<A href='./refETdynmap_update.php?date=".$next."&unit=".$_REQUEST['unit']."','next_date')>Next day</A>";
+                  }?></b></p>
     <div id="mapcanvasTEST_ET"></div></center>
     <?php
   //Set up color key for unit of mm.

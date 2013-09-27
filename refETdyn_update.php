@@ -38,10 +38,10 @@ function initialize3() {
   });
   
   <?php
-//Obtain metadata for displaying stations on Google map (below) or include in your own passwords.php file..
+//Obtain metadata for displaying stations on Google map (below).
 require_once( './cronos.php' );
 
-// Replace with your API key.
+// Replace with your API key or include in your own passwords.php file.
 $c = new CRONOS( $cronosAPIkey ); 
 
 // Collect data from ECONET, RAWS, ASOS and AWOS networks for NC, SC, AL, FL, GA, and VA.
@@ -63,7 +63,7 @@ foreach( $results as $r ) {
   $stninfo['name'] = str_replace("'", "", $r['name']);
   $stninfo['city'] = str_replace("'", "", $r['city']);
   
-  //run this is counter is less than total number of results from above array
+  //run this if counter is less than total number of results from above array
   if($count<=$total){ ?>
   var infoWindow;
   //Create a new point with the station lat/lon.
@@ -123,17 +123,17 @@ google.maps.event.addDomListener(window, 'load', initialize3);
 </script>
 </head>
 <body>
-<form action="refETdynmap.php" method="get">
+<form action="refETdynmap_update.php" method="get">
 <p><b><i>Please select your date and unit of interest.</b></i></p>
                   <div class="demo">
-                   <p>Date: <input type="text" name="date" id="datepicker" size="30"/>
+                   <p>Date: <input type="text" name="date" id="datepicker" size="30" value="<?php echo date('Y-m-d', strtotime('yesterday'));?>"  onblur="if (this.value == '') {this.value = '<?php echo date('Y-m-d', strtotime('yesterday'));?>';}"
+ onfocus="if (this.value == '<?php echo date('Y-m-d', strtotime('yesterday'));?>') {this.value = '';}" onchange="this.form.submit()"/>
                     &nbsp&nbsp&nbsp Unit:
-                  <select name="unit">
+                  <select name="unit" onchange="this.form.submit()">
                     <option value="inches">inches</option>
                     <option value="mm">mm</option>
                   </select>
-                  &nbsp&nbsp&nbsp&nbsp<input type="submit" value="Submit" class="button" />
-            &nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp<A href='http://www.nc-climate.ncsu.edu/et'>Back to Main Page</A>
+                  &nbsp&nbsp&nbsp&nbsp<!--<input type="submit" value="Submit" class="button" />-->
                    <br> &nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp (YYYY-MM-DD)
                   </p></div>
                   <hr width=95%>

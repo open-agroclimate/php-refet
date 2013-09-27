@@ -2,24 +2,18 @@
   "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
 <head>
-    <script src="js/mapiconmaker.js" type="text/javascript"></script>
-    <!--Change below API key to your key or include in your own passwords.php file.-->
-    <?php require_once('./passwords.php');?>
-    <script src="http://maps.google.com/maps?file=api&amp;v=2&amp;key=<?php echo $OldJSapiKey;?>&sensor=false" type="text/javascript"></script>
-    <script type="text/javascript" src="http://www.google.com/jsapi"></script>
-</head>
-<body>
 <style type="text/css">
 table#chart_table{
  display:inline;
 }
 </style>
-
+<script type="text/javascript" src="http://www.google.com/jsapi"></script>
 <?php  
 //Obtain metadata for requested station (displayed directly on webpage, see below), and compute the reference ET for period of record at that station. 
 
-require_once( './cronos/cronos.php' );
+require_once( './cronos.php' );
 require_once( './ETfunctionAPI.php' );
+require_once('./passwords.php');
 
 // Replace with your API key or include in your own passwords.php file.
 $c = new CRONOS( $cronosAPIkey );
@@ -34,23 +28,20 @@ $stninfo=array();
 foreach ($results as $r){
   
   $stations[] = $r['station'];
-  $stninfo['elev'] = $r['elev'];
+  $stninfo = $r;
+  //specific formatting for certain elements (e.g. remove apostrophes from name and city)
+  $stninfo['elev'] = $r['elev(ft)'];
   $stninfo['type'] = $r['network'];
-  $stninfo['lat'] = $r['lat'];
-  $stninfo['lon'] = $r['lon'];
-  $stninfo['name'] = $r['name'];
-  $stninfo['county'] = $r['county'];
-  $stninfo['city'] = $r['city'];
-  $stninfo['state'] = $r['state'];
-  $stninfo['startdate'] = $r['startdate'];
-  $stninfo['enddate'] = $r['enddate'];
-  $stninfo['station'] = $r['station'];
-       
+  $stninfo['name'] = str_replace("'", "", $r['name']);
+  $stninfo['city'] = str_replace("'", "", $r['city']);
+  
 }
 
 // Define start and enddates.
-$start=$stninfo['startdate'];
-$end=$stninfo['enddate'];
+$start=date('Y-m-d',strtotime($stninfo['startdate']));
+//might need to limit to past 3 years to reduce amount of time for loading the page
+//$start=date('Y-m-d',strtotime($stninfo['enddate']." -3year"));
+$end=date('Y-m-d',strtotime("yesterday"));
 
 // Get some data for requested dates and station.
 $daily = $c->getDailyData( $stations, $start, $end );
@@ -81,38 +72,43 @@ foreach( $daily as $d ) {
   list($Y,$M,$D)=explode("-",$date);
   $m=$M-1;
   $stninfo['data'][$d['ob']]['date']="new Date (".($Y+0).", ".($m+0).", ".($D+0).")";
-}
-
-?>
+}?>
 <script type="text/javascript">
 //Set up Google Annotated Timeline properties (date as a date and add a reference ET line).
     google.load('visualization', '1', {packages: ['annotatedtimeline']});
+    google.setOnLoadCallback(drawVisualization);
     function drawVisualization() {
    var data = new google.visualization.DataTable();
   data.addColumn('date', 'Date');
   data.addColumn('number', 'Calculated Daily PM ET');
+  // Output results for annotated timeline.
+  data.addRows([
 <?php
 //Loop through results and put them into array called $data.
-$row=0;
+$row=1;
 foreach($stninfo['data'] as $data){
 
-   // If reference ET estimates are not between 0 and 10, do not show on map (ie. continue to next iteration of loop).
-   if($data['etavg']<=0 || $data['etavg']>10){ 
+   // If reference ET estimates are not between 0 and 10, do not show on chart (ie. continue to next iteration of loop).
+   if(!array_key_exists( 'etavg', $data ) || $data['etavg']<=0 || $data['etavg']>10){
+   $row++;  //be sure to increment $row anyways (to make sure the below if statement works properly)
    continue;
-   }?>
-  
-  // Output results for annotated timeline.
-  data.addRows(1);
-  data.setValue(<?php echo $row;?>, 0, <?php  echo $data['date'];?>);
-  data.setValue(<?php echo $row;?>, 1, <?php If($_REQUEST['unit']=='mm'){echo $data['etavg'];}
-    elseif($_REQUEST['unit']=='inches'){echo $data['etavg_inch'];}?>);
+   }
+   if($row==count($daily)){?>
+   [<?php echo $data['date'];?>, <?php if($_REQUEST['unit']=='mm'){echo $data['etavg'];}
+    elseif($_REQUEST['unit']=='inches'){echo $data['etavg_inch'];}?>]
+    <?php }else{ ?>   
+   [<?php echo $data['date'];?>, <?php if($_REQUEST['unit']=='mm'){echo $data['etavg'];}
+    elseif($_REQUEST['unit']=='inches'){echo $data['etavg_inch'];}?>],
   <?php
-  $row++;}?>
+    }
+  $row++;
+  } ?> //end foreach loop
+  ]); //end data.addRows
       var annotatedtimeline = new google.visualization.AnnotatedTimeLine(
           document.getElementById('visualization'));
       //Specify timeline properties.
       annotatedtimeline.draw(data, { 'displayAnnotations': true,
-                                    'allValuesSuffix': '<?php If($_REQUEST['unit']=='mm'){echo " mm";}
+                                    'allValuesSuffix': '<?php if($_REQUEST['unit']=='mm'){echo " mm";}
 				    elseif($_REQUEST['unit']=='inches'){echo " inches";}?>', // A suffix that is added to all values
    				            'colors':['green'], // The colors to be used
                                     'displayExactValues': true, // Do not truncate values (i.e. using K suffix)
@@ -123,26 +119,25 @@ foreach($stninfo['data'] as $data){
                                     //NOTE: month 1 = Feb (javascript to blame)
                                    });
 		  }
-      google.setOnLoadCallback(drawVisualization);
   </script>
+</head>
+<body>
 <?php //Echo station metadata and link to explain station types.
 echo "<p><b>Station: </b>".$stninfo['name']." (".$stninfo['station'].")<br><b>Type: </b>".$stninfo['type']." <A href=# onClick=window.open('http://www.nc-climate.ncsu.edu/dynamic_scripts/cronos/types.php','link','width=500,height=1000,scrollbars=yes')>what does this mean?</A> <br><b>Elevation: </b>".$stninfo['elev']." feet above sea level<br><b>Location: </b>".$stninfo['city'].", ".$stninfo['state']."<br><b>Start Date: </b>".$stninfo['startdate']."<br><b>End Date: </b>".$stninfo['enddate']."</p>";?>
 <p><table id="chart_table"><tr>
 <?php If($_REQUEST['unit']=='inches'){ ?>
-  <td><form action="refETdynchart.php?station=<?php echo $stninfo['station'];?>&year=<?php echo $_REQUEST['year'];?>&unit=mm" method="post">
+  <td><form action="./refETdynchart_update.php?station=<?php echo $stninfo['station'];?>&year=<?php echo $_REQUEST['year'];?>&unit=mm" method="post">
   <input type="submit" name="units" value="Display mm">
   </form></td>
 <?php }
 elseif($_REQUEST['unit']=='mm'){
 ?>
-  <td><form action="refETdynchart.php?station=<?php echo $stninfo['station'];?>&year=<?php echo $_REQUEST['year'];?>&unit=inches" method="post">
+  <td><form action="./refETdynchart_update.php?station=<?php echo $stninfo['station'];?>&year=<?php echo $_REQUEST['year'];?>&unit=inches" method="post">
   <input type="submit" name="units" value="Display inches">
   </form></td>
 <?php }
 ?>
-  <td><form action="http://www.nc-climate.ncsu.edu/et" method="post">
-  <input type="submit" name="main" value="Main page">
-  </form></td></tr></table></p>
+  </tr></table></p>
 <p><u><b><?php echo "Time Series of FAO56 Penman-Monteith Estimated Reference Evapotranspiration";?></u></b></p>
 <div id="visualization" style="width: 800px; height: 400px;"></div>
 <br><br><p align='left'><img src='images/get_adobe_flash_player.png' width='158' height='39' border='0' usemap='#Map'><map name='Map'><area shape='rect' coords='0,0,162,44' href='http://get.adobe.com/flashplayer/?promoid=BUIGP'></map></p>
